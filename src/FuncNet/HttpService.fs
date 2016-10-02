@@ -22,6 +22,8 @@ module Http =
     type Response =
         { RawResponse : HttpResponseMessage }
         override self.ToString() =
+            self.ContentString
+        member self.ContentString =
             self.RawResponse.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
 
     type Client =
