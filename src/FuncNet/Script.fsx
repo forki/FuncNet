@@ -2,10 +2,11 @@
 
 #load "Service.fs"
 #load "HttpService.fs"
+#load "Future.fs"
 
 open FuncNet
-open System.Net.Http
 
+// Sample of get without futures
 let client = Http.createClient "http://www.google.dk"
 async {
     let! response = Http.get "/" |> client
