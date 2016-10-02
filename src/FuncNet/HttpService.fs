@@ -30,7 +30,7 @@ module Http =
             async {
                 let! response = self.Client.SendAsync(request) |> Async.AwaitTask
                 return { RawResponse = response }
-            }
+            } |> Future.fromAsync
 
     let createClient baseAddress : Service<HttpRequestMessage, Response> =
         let client = new HttpClient()
