@@ -10,6 +10,9 @@ type Future<'a> = Async<Outcome<'a>>
 
 [<RequireQualifiedAccessAttribute>]
 module Future =
+    open System.Threading
+    open System.Threading.Tasks
+
     let fromAsync (computation : Async<'a>) : Future<'a> =
         async {
             let! choice = (Async.Catch computation)
@@ -81,6 +84,19 @@ module Future =
             | Success x -> return x
             | Failure e -> return raise e
         } |> Async.RunSynchronously
+
+    let withIn (timeoutMs : int) (future : Future<'a>) : Future<'a> =
+        async {
+            use cts = new CancellationTokenSource()
+            use timer = Task.Delay(timeoutMs, cts.Token)
+            let futureTask = new Task<Outcome<'a>>(fun () -> future |> Async.RunSynchronously)
+            let! completed = Task.WhenAny(futureTask, timer) |> Async.AwaitTask
+            if completed = (futureTask :> Task) then
+                cts.Cancel()
+                let! result = futureTask |> Async.AwaitTask
+                return result
+            else return Failure (TimeoutException())
+        }
 
 module Operators =
     let (->>) = Future.bind
