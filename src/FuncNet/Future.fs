@@ -46,7 +46,7 @@ module Future =
     let bind (f : 'a -> Future<'b>) (g : 'b -> Future<'c>) : 'a -> Future<'c> =
         f >> (flatMap g)
 
-    let chain (futures : ('a -> Future<'a>) list) : 'a -> Future<'a> =
+    let collect (futures : ('a -> Future<'a>) list) : 'a -> Future<'a> =
         futures
         |> List.fold bind value
 
