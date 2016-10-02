@@ -60,6 +60,7 @@
   -->
   <Import Project="..\..\.paket\paket.targets" />
   <ItemGroup>
+    <Compile Include="Future.fs" />
     <Compile Include="Service.fs" />
     <Compile Include="HttpService.fs" />
     <None Include="Script.fsx" />
