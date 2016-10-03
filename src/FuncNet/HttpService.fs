@@ -28,13 +28,13 @@ module Http =
 
     type Client =
         { Client : HttpClient }
-        member self.Request(request : HttpRequestMessage) =
+        member self.Request(request : unit -> HttpRequestMessage) =
             async {
-                let! response = self.Client.SendAsync(request) |> Async.AwaitTask
+                let! response = self.Client.SendAsync(request()) |> Async.AwaitTask
                 return { RawResponse = response }
             } |> Future.fromAsync
 
-    let createClient baseAddress : Service<HttpRequestMessage, Response> =
+    let createClient baseAddress : Service<unit -> HttpRequestMessage, Response> =
         let client = new HttpClient()
         client.BaseAddress <- new Uri(baseAddress)
         { Client = client }.Request
@@ -46,8 +46,8 @@ module Http =
         | None -> ()
         msg
 
-    let get path = request Get path None
-    let delete path = request Delete path None
-    let post path content = request Post path content
-    let put path content = request Put path content
-    let patch path content = request Patch path content
+    let get path = fun () -> request Get path None
+    let delete path = fun () ->request Delete path None
+    let post path content = fun () ->request Post path content
+    let put path content = fun () -> request Put path content
+    let patch path content = fun () -> request Patch path content

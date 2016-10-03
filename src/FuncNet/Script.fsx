@@ -2,7 +2,7 @@
 
 #load "Future.fs"
 #load "Service.fs"
-#load "Filter.fs"
+#load "Filters.fs"
 #load "HttpService.fs"
 
 open FuncNet
@@ -19,4 +19,12 @@ let timeoutClient =
     |> TimeoutFilter.create 1000
 Http.get "/"
 |> timeoutClient
+|> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+
+// Sample of retry filter
+let retryClient =
+    Http.createClient "http://www.google.dk:6666"
+    |> RetryFilter.triesWhile 2 (fun o -> match o with | Failure _ -> true | _ -> false)
+Http.get "/"
+|> retryClient
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
