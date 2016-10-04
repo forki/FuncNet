@@ -34,10 +34,32 @@ module RetryFilter =
                 yield predicate
         }
         create policies
-                    return! retry (policy |> Seq.tail) request
-                else return outcome
+
+[<RequireQualifiedAccessAttribute>]
+module RetryExceptionsFilter =
+    type RetryPolicy = exn -> bool
+    
+    let create (policies : RetryPolicy seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
+        let rec retry (policy : RetryPolicy seq) request =
+            async {
+                let! outcome = service request
+                match outcome with
+                | Success x -> return Success x
+                | Failure e ->
+                    if policy |> Seq.isEmpty then
+                        return Failure e
+                    elif Seq.head policy e then
+                        return! retry (policy |> Seq.tail) request
+                    else return Failure e
             }
         retry policies
+
+    let tries times =
+        let retry _ = true
+        let policies = seq {
+            for _ in 1 .. times -> retry
+        }
+        create policies
 
     let doWhile predicate =
         let rec policies = seq {
