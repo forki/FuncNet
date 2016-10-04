@@ -74,3 +74,11 @@ module RetryExceptionsFilter =
                 yield predicate
         }
         create policies
+
+[<RequireQualifiedAccessAttribute>]
+module LoggingFilter =
+    let create (logger : 'a -> 'a) (service : Service<'a, 'b>) : Service<'a, 'b> =
+        let logger' request = async {
+            return! logger request |> service
+        }
+        logger'

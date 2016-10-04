@@ -28,3 +28,11 @@ let retryClient =
 Http.get "/"
 |> retryClient
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+
+// Sample of logging filter
+let loggingClient =
+    Http.createClient "http://www.google.dk:6666"
+    |> LoggingFilter.create (fun x -> printfn "%O" (x()); x)
+Http.get "/"
+|> loggingClient
+|> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
