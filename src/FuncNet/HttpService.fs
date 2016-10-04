@@ -11,7 +11,7 @@ module Http =
         | Put
         | Delete
         | Patch
-        member self.Method =
+        member self.HttpMethod =
             match self with
             | Get -> HttpMethod.Get
             | Post -> HttpMethod.Post
@@ -26,28 +26,36 @@ module Http =
         member self.ContentString =
             self.RawResponse.Content.ReadAsStringAsync() |> Async.AwaitTask |> Async.RunSynchronously
 
+    type Request =
+        {
+            Content : HttpContent option;
+            Method : Method;
+            Path : string
+        }
+
     type Client =
         { Client : HttpClient }
-        member self.Request(request : unit -> HttpRequestMessage) =
+        member self.Request(request : Request) =
             async {
-                let! response = self.Client.SendAsync(request()) |> Async.AwaitTask
+                let httpRequest = new HttpRequestMessage(request.Method.HttpMethod, request.Path)
+                match request.Content with
+                | Some x -> httpRequest.Content <- x
+                | None -> ()
+                let! response = self.Client.SendAsync(httpRequest) |> Async.AwaitTask
                 return { RawResponse = response }
             } |> Future.fromAsync
 
-    let createClient baseAddress : Service<unit -> HttpRequestMessage, Response> =
+    let createClient baseAddress : Service<Request, Response> =
         let client = new HttpClient()
         client.BaseAddress <- new Uri(baseAddress)
         { Client = client }.Request
 
-    let request (m : Method) (path : string) (content : HttpContent option) =
-        let msg = new HttpRequestMessage(m.Method, path)
-        match content with
-        | Some x -> msg.Content <- x
-        | None -> ()
+    let request (m : Method) (path : string) (content : HttpContent option) : Request =
+        let msg = { Method = m; Path = path; Content = content }
         msg
 
-    let get path = fun () -> request Get path None
-    let delete path = fun () ->request Delete path None
-    let post path content = fun () ->request Post path content
-    let put path content = fun () -> request Put path content
-    let patch path content = fun () -> request Patch path content
+    let get path = request Get path None
+    let delete path = request Delete path None
+    let post path content = request Post path content
+    let put path content = request Put path content
+    let patch path content = request Patch path content
