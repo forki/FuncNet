@@ -63,6 +63,7 @@
     <Compile Include="Future.fs" />
     <Compile Include="Service.fs" />
     <Compile Include="Filters.fs" />
+    <Compile Include="Classifier.fs" />
     <Compile Include="Http.fs" />
     <None Include="Script.fsx" />
     <None Include="paket.references" />

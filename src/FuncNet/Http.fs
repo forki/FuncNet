@@ -32,6 +32,8 @@ module Http =
         {
             /// The raw response
             RawResponse : HttpResponseMessage
+            // HTTP status code
+            StatusCode : System.Net.HttpStatusCode
         }
         override self.ToString() =
             self.ContentString
@@ -64,7 +66,7 @@ module Http =
                 | Some x -> httpRequest.Content <- x
                 | None -> ()
                 let! response = self.Client.SendAsync(httpRequest) |> Async.AwaitTask
-                return { RawResponse = response }
+                return { RawResponse = response; StatusCode = response.StatusCode }
             } |> Future.fromAsync
 
     /// Create a HTTP client using the specified URL as base address
@@ -88,3 +90,34 @@ module Http =
     let put path content = request Put path content
     /// Create a HTTP PATCH request
     let patch path content = request Patch path content
+
+    /// HTTP classifiers
+    [<RequireQualifiedAccessAttribute>]
+    module Classifer =
+        /// Checks if the HTTP statuscode is a server error, meaning 500 or above
+        let isServerError statusCode =
+            statusCode >= 500
+
+        /// Checks if the HTTP statuscode is a client error, meaning between 400 and 500
+        let isClientError statusCode =
+            statusCode >= 400 && statusCode < 500
+
+        /// Generic HTTP status code classifier
+        let statusCodeClassifier (failurePredicate : int -> bool ) service request =
+            async {
+                let! outcome = request |> service
+                match outcome with
+                | Success x ->
+                    let statusCode = x.StatusCode |> int
+                    if statusCode |> failurePredicate then return Failure (Classifier.ClassifierException (sprintf "HTTP status code was %i" statusCode))
+                    else return Success x
+                | Failure e -> return Failure e
+            }
+
+        /// Classifier marking the request as a failure if the HTTP status code indicates a server error
+        let serverErrorsAsFailure (service : Service<Request, Response>) : Service<Request, Response> =
+            statusCodeClassifier isServerError service
+
+        /// Classifier marking the request as a failure if the HTTP status code indicates a client error
+        let clientErrorsAsFailure (service : Service<Request, Response>) : Service<Request, Response> =
+            statusCodeClassifier isClientError service

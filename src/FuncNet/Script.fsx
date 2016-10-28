@@ -3,7 +3,8 @@
 #load "Future.fs"
 #load "Service.fs"
 #load "Filters.fs"
-#load "HttpService.fs"
+#load "Classifier.fs"
+#load "Http.fs"
 
 open FuncNet
 
@@ -35,4 +36,12 @@ let loggingClient =
     |> LoggingFilter.create (fun x -> printfn "%O" (x); x)
 Http.get "/"
 |> loggingClient
+|> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+
+// Sample of HTTP classifier
+let clientErrorClassifierClient =
+    Http.createClient "http://www.google.dk"
+    |> Http.Classifer.clientErrorsAsFailure
+Http.get "/test"
+|> clientErrorClassifierClient
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
