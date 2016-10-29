@@ -70,9 +70,14 @@ module Http =
             } |> Future.fromAsync
 
     /// Create a HTTP client using the specified URL as base address
-    let createClient baseAddress : Service<Request, Response> =
+    let createClientWithBase baseAddress : Service<Request, Response> =
         let client = new HttpClient()
         client.BaseAddress <- new Uri(baseAddress)
+        { Client = client }.Request
+
+    /// Create a HTTP client using the specified URL as base address
+    let createClient : Service<Request, Response> =
+        let client = new HttpClient()
         { Client = client }.Request
 
     /// Create a HTTP request

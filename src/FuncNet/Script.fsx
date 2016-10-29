@@ -9,14 +9,14 @@
 open FuncNet
 
 // Sample of get without futures
-let client = Http.createClient "http://www.google.dk"
+let client = Http.createClientWithBase "http://www.google.dk"
 Http.get "/"
 |> client
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
 
 // Sample of timeout filter
 let timeoutClient =
-    Http.createClient "http://www.google.dk:6666"
+    Http.createClientWithBase "http://www.google.dk:6666"
     |> TimeoutFilter.create 1000
 Http.get "/"
 |> timeoutClient
@@ -27,7 +27,7 @@ let retryPolicy =
     RetryFilter.createPolicy (fun o -> match o with | Failure _ -> true | _ -> false)
 
 let retryClient =
-    Http.createClient "http://www.google.dk:6666"
+    Http.createClientWithBase "http://www.google.dk:6666"
     |> RetryFilter.triesWhile 2 retryPolicy
 Http.get "/"
 |> retryClient
@@ -35,7 +35,7 @@ Http.get "/"
 
 // Sample of logging filter
 let loggingClient =
-    Http.createClient "http://www.google.dk"
+    Http.createClientWithBase "http://www.google.dk"
     |> LoggingFilter.create (fun x -> printfn "%O" (x); x)
 Http.get "/"
 |> loggingClient
@@ -43,7 +43,7 @@ Http.get "/"
 
 // Sample of HTTP classifier
 let clientErrorClassifierClient =
-    Http.createClient "http://www.google.dk"
+    Http.createClientWithBase "http://www.google.dk"
     |> Http.Classifer.clientErrorsAsFailure
 Http.get "/test"
 |> clientErrorClassifierClient
