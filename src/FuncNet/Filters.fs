@@ -11,19 +11,38 @@ module TimeoutFilter =
 /// Retry filter. Allows implementing retry logic, both for successful requests and for failed requests
 [<RequireQualifiedAccessAttribute>]
 module RetryFilter =
-    /// Retry policy definition
-    type RetryPolicy<'a> = Outcome<'a> -> bool
-    
+    // Retry policy
+    type RetryPolicy<'a> =
+        {
+            /// Predicate determning if it should retry
+            Predicate : Outcome<'a> -> bool;
+            /// Retry backoff in ms
+            Backoff : int option;
+        }
+
+    /// Create a retry policy
+    let createPolicy predicate =
+        { Predicate = predicate; Backoff = None }
+
+    /// Create a retry policy with backoff ms
+    let createPolicyWithBackoff backoffMs policy =
+        { policy with Backoff = backoffMs }
+
     /// Creats a new retry filter, using the specifed retry policies
     let create (policies : RetryPolicy<'b> seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
-        let rec retry (policy : RetryPolicy<'b> seq) request =
+        let rec retry (policies : RetryPolicy<'b> seq) request =
             async {
                 let! outcome = service request
-                if policy |> Seq.isEmpty then
+                if policies |> Seq.isEmpty then
                     return outcome
-                elif Seq.head policy outcome then
-                    return! retry (policy |> Seq.tail) request
-                else return outcome
+                else
+                    let policy = Seq.head policies
+                    if policy.Predicate outcome then
+                        match policy.Backoff with
+                        | Some x -> do! Async.Sleep x
+                        | None -> ()
+                        return! retry (policies |> Seq.tail) request
+                    else return outcome
             }
         retry policies
 
@@ -47,22 +66,41 @@ module RetryFilter =
 /// Retry filter, only retrying on failed requests.
 [<RequireQualifiedAccessAttribute>]
 module RetryExceptionsFilter =
-    /// Retry policy definition
-    type RetryPolicy = exn -> bool
+    // Retry policy
+    type RetryPolicy =
+        {
+            /// Predicate determning if it should retry
+            Predicate : exn -> bool;
+            /// Retry backoff in ms
+            Backoff : int option;
+        }
+
+    /// Create a retry policy
+    let createPolicy predicate =
+        { Predicate = predicate; Backoff = None }
+
+    /// Create a retry policy with backoff ms
+    let createPolicyWithBackoff backoffMs policy =
+        { policy with Backoff = backoffMs }
     
     /// Creats a new retry filter, using the specifed retry policies
     let create (policies : RetryPolicy seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
-        let rec retry (policy : RetryPolicy seq) request =
+        let rec retry (policies : RetryPolicy seq) request =
             async {
                 let! outcome = service request
                 match outcome with
                 | Success x -> return Success x
                 | Failure e ->
-                    if policy |> Seq.isEmpty then
+                    if policies |> Seq.isEmpty then
                         return Failure e
-                    elif Seq.head policy e then
-                        return! retry (policy |> Seq.tail) request
-                    else return Failure e
+                    else
+                        let policy = Seq.head policies
+                        if policy.Predicate e then
+                            match policy.Backoff with
+                            | Some x -> do! Async.Sleep x
+                            | None -> ()
+                            return! retry (policies |> Seq.tail) request
+                        else return Failure e
             }
         retry policies
 
@@ -70,7 +108,7 @@ module RetryExceptionsFilter =
     let tries times service : Service<'a, 'b> =
         let retry _ = true
         let policies = seq {
-            for _ in 1 .. times -> retry
+            for _ in 1 .. times -> createPolicy retry
         }
         create policies service
 
