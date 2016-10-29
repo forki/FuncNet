@@ -31,6 +31,10 @@ module Future =
     let value x =
         fromAsync (async { return x })
 
+    /// Creates a future from an exception
+    let exn x =
+        fromAsync (async { raise x })
+
     /// Map a success value of a future to another future
     let flatMap (f : 'a -> Future<'b>) (future : Future<'a>) : Future<'b> =
         async {
