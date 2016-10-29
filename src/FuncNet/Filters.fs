@@ -28,21 +28,21 @@ module RetryFilter =
         retry policies
 
     /// Create a retry filter, retrying as long as the predicate is statisfied
-    let doWhile predicate =
+    let doWhile predicate service : Service<'a, 'b> =
         let rec policies = seq {
             yield predicate
             yield! policies
         }
-        create policies
+        create policies service
 
     /// Creates a retry filter, retrying as long as the predicate is statisfied, but maximum the number of
     /// times specified
-    let triesWhile times predicate =
+    let triesWhile times predicate service : Service<'a, 'b> =
         let rec policies = seq {
             for _ in 1 .. times do
                 yield predicate
         }
-        create policies
+        create policies service
 
 /// Retry filter, only retrying on failed requests.
 [<RequireQualifiedAccessAttribute>]
@@ -67,29 +67,29 @@ module RetryExceptionsFilter =
         retry policies
 
     /// Create a retry filter, retrying at most the specified number of times
-    let tries times =
+    let tries times service : Service<'a, 'b> =
         let retry _ = true
         let policies = seq {
             for _ in 1 .. times -> retry
         }
-        create policies
+        create policies service
 
     /// Create a retry filter, retrying as long as the predicate is statisfied
-    let doWhile predicate =
+    let doWhile predicate service : Service<'a, 'b> =
         let rec policies = seq {
             yield predicate
             yield! policies
         }
-        create policies
+        create policies service
 
     /// Creates a retry filter, retrying as long as the predicate is statisfied, but maximum the number of
     /// times specified
-    let triesWhile times predicate =
+    let triesWhile times predicate service : Service<'a, 'b> =
         let rec policies = seq {
             for _ in 1 .. times do
                 yield predicate
         }
-        create policies
+        create policies service
 
 /// Logging filter. Use the log requests before they are executed by the service
 [<RequireQualifiedAccessAttribute>]
