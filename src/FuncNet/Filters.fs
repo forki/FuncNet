@@ -8,29 +8,29 @@ module TimeoutFilter =
     let create (timeoutMs : int) (service : Service<'a, 'b>) : Service<'a, 'b> =
         service >> Future.withIn timeoutMs
 
+// Retry policy
+type RetryPolicy<'a> =
+    {
+        /// Predicate determning if it should retry
+        Predicate : 'a -> bool;
+        /// Retry backoff in ms
+        Backoff : int option;
+    }
+
 /// Retry filter. Allows implementing retry logic, both for successful requests and for failed requests
 [<RequireQualifiedAccessAttribute>]
 module RetryFilter =
-    // Retry policy
-    type RetryPolicy<'a> =
-        {
-            /// Predicate determning if it should retry
-            Predicate : Outcome<'a> -> bool;
-            /// Retry backoff in ms
-            Backoff : int option;
-        }
-
     /// Create a retry policy
-    let createPolicy predicate =
+    let createPolicy (predicate : Outcome<'a> -> bool) =
         { Predicate = predicate; Backoff = None }
 
     /// Create a retry policy with backoff ms
-    let createPolicyWithBackoff backoffMs policy =
-        { policy with Backoff = backoffMs }
+    let createPolicyWithBackoff (predicate : Outcome<'a> -> bool) backoffMs =
+        { Predicate = predicate; Backoff = Some backoffMs }
 
     /// Creats a new retry filter, using the specifed retry policies
-    let create (policies : RetryPolicy<'b> seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
-        let rec retry (policies : RetryPolicy<'b> seq) request =
+    let create (policies : RetryPolicy<_> seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
+        let rec retry (policies : RetryPolicy<_> seq) request =
             async {
                 let! outcome = service request
                 if policies |> Seq.isEmpty then
@@ -66,26 +66,17 @@ module RetryFilter =
 /// Retry filter, only retrying on failed requests.
 [<RequireQualifiedAccessAttribute>]
 module RetryExceptionsFilter =
-    // Retry policy
-    type RetryPolicy =
-        {
-            /// Predicate determning if it should retry
-            Predicate : exn -> bool;
-            /// Retry backoff in ms
-            Backoff : int option;
-        }
-
     /// Create a retry policy
     let createPolicy predicate =
         { Predicate = predicate; Backoff = None }
 
     /// Create a retry policy with backoff ms
-    let createPolicyWithBackoff backoffMs policy =
-        { policy with Backoff = backoffMs }
+    let createPolicyWithBackoff (predicate : exn -> bool) backoffMs =
+        { Predicate = predicate; Backoff = Some backoffMs }
     
     /// Creats a new retry filter, using the specifed retry policies
-    let create (policies : RetryPolicy seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
-        let rec retry (policies : RetryPolicy seq) request =
+    let create (policies : RetryPolicy<_> seq) (service : Service<'a, 'b>) : Service<'a, 'b> =
+        let rec retry (policies : RetryPolicy<_> seq) request =
             async {
                 let! outcome = service request
                 match outcome with
