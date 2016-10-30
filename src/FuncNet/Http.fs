@@ -53,32 +53,34 @@ module Http =
         }
 
     /// The HTTP client
-    type Client =
-        {
-            /// The HttpClient used to perform HTTP requests
-            Client : HttpClient
-        }
+    type Client(httpClient : HttpClient) =
+        inherit Service<Request, Response>()
+
         /// Perform a HTTP request
-        member self.Request(request : Request) =
+        override __.Request(request : Request) =
             async {
                 let httpRequest = new HttpRequestMessage(request.Method.HttpMethod, request.Path)
                 match request.Content with
                 | Some x -> httpRequest.Content <- x
                 | None -> ()
-                let! response = self.Client.SendAsync(httpRequest) |> Async.AwaitTask
+                let! response = httpClient.SendAsync(httpRequest) |> Async.AwaitTask
                 return { RawResponse = response; StatusCode = response.StatusCode }
             } |> Future.fromAsync
+
+        /// Close the HTTP service
+        override __.Close() =
+            httpClient.Dispose()
 
     /// Create a HTTP client using the specified URL as base address
     let createClientWithBase baseAddress : Service<Request, Response> =
         let client = new HttpClient()
         client.BaseAddress <- new Uri(baseAddress)
-        { Client = client }.Request
+        new Client(client) :> Service<Request, Response>
 
     /// Create a HTTP client using the specified URL as base address
     let createClient : Service<Request, Response> =
         let client = new HttpClient()
-        { Client = client }.Request
+        new Client(client) :> Service<Request, Response>
 
     /// Create a HTTP request
     let request (m : Method) (path : string) (content : HttpContent option) : Request =
@@ -108,9 +110,9 @@ module Http =
             statusCode >= 400 && statusCode < 500
 
         /// Generic HTTP status code classifier
-        let statusCodeClassifier (failurePredicate : int -> bool ) service request =
+        let statusCodeClassifier (failurePredicate : int -> bool ) (service : Service<Request, Response>) request =
             async {
-                let! outcome = request |> service
+                let! outcome = request |> service.Request
                 match outcome with
                 | Success x ->
                     let statusCode = x.StatusCode |> int
@@ -120,9 +122,9 @@ module Http =
             }
 
         /// Classifier marking the request as a failure if the HTTP status code indicates a server error
-        let serverErrorsAsFailure (service : Service<Request, Response>) : Service<Request, Response> =
+        let serverErrorsAsFailure (service : Service<Request, Response>) : Classifier<Request, Response> =
             statusCodeClassifier isServerError service
 
         /// Classifier marking the request as a failure if the HTTP status code indicates a client error
-        let clientErrorsAsFailure (service : Service<Request, Response>) : Service<Request, Response> =
+        let clientErrorsAsFailure (service : Service<Request, Response>) : Classifier<Request, Response> =
             statusCodeClassifier isClientError service

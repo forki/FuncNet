@@ -11,7 +11,7 @@ open FuncNet
 // Sample of get without futures
 let client = Http.createClientWithBase "http://www.google.dk"
 Http.get "/"
-|> client
+|> client.Request
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
 
 // Sample of timeout filter

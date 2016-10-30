@@ -1,5 +1,8 @@
 ﻿namespace FuncNet
 
+/// Classifier definition
+type Classifier<'a, 'b> = 'a -> Future<'b> 
+
 /// Common classifier definitions
 [<RequireQualifiedAccessAttribute>]
 module Classifier =
