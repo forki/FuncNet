@@ -132,3 +132,46 @@ module LoggingFilter =
             return! logger request |> service
         }
         logger'
+
+/// Filter limiting the number of requests within a timeframe
+[<RequireQualifiedAccessAttribute>]
+module RateLimitingFilter =
+    open System
+
+    /// Exception thrown if a request is refused because of rate limiting
+    type RefusedByRateLimiterException() = inherit Exception()
+
+    type private Limiter(windowSize, numberOfRequests) =
+        let mutable remainingRequests = numberOfRequests
+        let mutable lastTimestamp = DateTime.Now
+        let lockObject = new obj()
+
+        let resetRemainingRequestsIfNewWindow (timestamp : DateTime) =
+            if timestamp.Subtract(lastTimestamp).TotalMilliseconds > float windowSize then
+                remainingRequests <- numberOfRequests
+
+        let shouldBeLimited() =
+            remainingRequests <= 0
+
+        let limitingService (service : Service<'a, 'b>) request : Future<'b> =
+            async {
+                return! lock lockObject (fun () ->
+                        let now = DateTime.Now
+                        resetRemainingRequestsIfNewWindow now
+                        let limited = shouldBeLimited()
+                        if limited then
+                            async { return Failure <| (RefusedByRateLimiterException() :> Exception) }
+                        else
+                            remainingRequests <- remainingRequests - 1
+                            lastTimestamp <- now
+                            async { return! request |> service }
+                    )
+            }
+
+        member __.apply service =
+            limitingService service
+
+    /// Create a new rate limiter filter
+    let create (windowSize : int) numberOfRequests (service : Service<'a, 'b>) : Service<'a, 'b> =
+        let limiter = new Limiter(windowSize, numberOfRequests)
+        limiter.apply service

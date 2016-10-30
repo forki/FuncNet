@@ -48,3 +48,14 @@ let clientErrorClassifierClient =
 Http.get "/test"
 |> clientErrorClassifierClient
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+
+// Sampel of rate limiting
+let rateLimitClient =
+    Http.createClientWithBase "http://www.google.dk:6666"
+    |> RateLimitingFilter.create 1000 1
+Http.get "/"
+|> rateLimitClient
+|> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+Http.get "/"
+|> rateLimitClient
+|> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
