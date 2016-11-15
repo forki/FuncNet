@@ -78,7 +78,7 @@ module Http =
         new Client(client) :> Service<Request, Response>
 
     /// Create a HTTP client using the specified URL as base address
-    let createClient : Service<Request, Response> =
+    let createClient() : Service<Request, Response> =
         let client = new HttpClient()
         new Client(client) :> Service<Request, Response>
 
@@ -92,11 +92,14 @@ module Http =
     /// Create a HTTP DELETE request
     let delete path = request Delete path None
     /// Create a HTTP POST request
-    let post path content = request Post path content
+    let post path content =
+        request Post path (Some ((new StringContent(content)) :> HttpContent))
     /// Create a HTTP PUT request
-    let put path content = request Put path content
+    let put path content =
+        request Put path (Some ((new StringContent(content)) :> HttpContent))
     /// Create a HTTP PATCH request
-    let patch path content = request Patch path content
+    let patch path content =
+        request Patch path (Some ((new StringContent(content)) :> HttpContent))
 
     /// HTTP classifiers
     [<RequireQualifiedAccessAttribute>]
