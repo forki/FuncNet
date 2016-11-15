@@ -107,15 +107,19 @@ module Future =
     /// the future fails with a TimeoutException
     let withIn (timeoutMs : int) (future : Future<'a>) : Future<'a> =
         async {
-            use cts = new CancellationTokenSource()
-            use timer = Task.Delay(timeoutMs, cts.Token)
-            let futureTask = new Task<Outcome<'a>>(fun () -> future |> Async.RunSynchronously)
-            let! completed = Task.WhenAny(futureTask, timer) |> Async.AwaitTask
-            if completed = (futureTask :> Task) then
-                cts.Cancel()
-                let! result = futureTask |> Async.AwaitTask
-                return result
-            else return Failure (TimeoutException())
+            let mutable outcome = None
+            use cts = new CancellationTokenSource(timeoutMs)
+            let task = Async.StartAsTask(future, TaskCreationOptions.None, cts.Token).ContinueWith(fun (t : Task<Outcome<'a>>) ->
+                if t.IsFaulted then
+                    outcome <- Some <| Failure t.Exception
+                elif t.IsCanceled then
+                    outcome <- Some <| Failure (TimeoutException())
+                else
+                    outcome <- Some <| t.Result)
+            task.Wait()
+            match outcome with
+            | Some x -> return x
+            | None -> return Failure <| ((InvalidOperationException("Outcome not assigned, this should not happen")) :> Exception)
         }
 
 /// Future operators
