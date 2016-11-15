@@ -69,30 +69,36 @@ module Future =
 
     /// Define functions to call on completion of the future. One for success, and one for failure
     let onComplete (onSuccess : 'a -> unit) (onFailure : exn -> unit) (future : Future<'a>) : unit =
-        async {
+        let cts = new CancellationTokenSource()
+        let a = async {
             let! outcome = future
             match outcome with
             | Success x -> onSuccess x
             | Failure e -> onFailure e
-        } |> Async.Start
+        }
+        Async.Start(a, cts.Token)
 
     /// Define function to be called on successful completion of the future
     let onSuccess (f : 'a -> unit) (future : Future<'a>) : unit =
-        async {
+        let cts = new CancellationTokenSource()
+        let a = async {
             let! outcome = future
             match outcome with
             | Success x -> f x
             | Failure _ -> ()
-        } |> Async.Start
+        }
+        Async.Start(a, cts.Token)
 
     /// Define function to be called on failed completion of the future
     let onFailure (f : exn -> unit) (future : Future<'a>) : unit =
-        async {
+        let cts = new CancellationTokenSource()
+        let a = async {
             let! outcome = future
             match outcome with
             | Success _ -> ()
             | Failure e -> f e
-        } |> Async.Start
+        }
+        Async.Start(a, cts.Token)
 
     /// Synchronously wait for the future to complete
     let await (future : Future<'a>) : 'a =

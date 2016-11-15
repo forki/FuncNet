@@ -59,3 +59,15 @@ Http.get "/"
 Http.get "/"
 |> rateLimitClient
 |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+
+/// Sample of drain service
+let httpClientWithDrain =
+    Http.createClientWithBase "http://www.telenor.dk:6666"
+    |> Service.withDrain
+let withTimeout =
+    httpClientWithDrain
+    |> TimeoutFilter.create 10000
+Http.get "/"
+    |> withTimeout
+    |> Future.onComplete (fun x -> printfn "%O" x) (fun x -> printfn "Failure: %O" x)
+httpClientWithDrain.Close()
