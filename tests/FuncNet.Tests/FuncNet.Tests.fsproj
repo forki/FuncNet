@@ -51,6 +51,7 @@
     <Content Include="App.config" />
     <Compile Include="HttpTest.fs" />
     <Compile Include="FutureTest.fs" />
+    <Compile Include="TcpTest.fs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <Choose>
